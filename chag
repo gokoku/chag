@@ -1,0 +1,93 @@
+#!/Users/jyoji/.rbenv/shims/ruby
+# -*- coding: utf-8 -*-
+
+require File.dirname(__FILE__) + '/image_files'
+require 'mini_magick'
+require 'thor'
+require 'pry'
+class Chag < Thor
+  desc "resize [width] [height] [rename] [filesize]","[幅] [高さ] でリサイズします。
+[reaname]をtrueにするとリサイズ情報を加えたリネームをします。
+[filesize]をtrueにするとファイルサイズを200kb以下にする。"
+  def resize( width, height, rename="false", filesize="false" )
+    images = ImageFiles.new
+
+    puts "これらのファイルを#{width}×#{height} にリサイズします。"
+    images.each do |f|
+      img = Magick::Image.read(f).first
+      img.resize( width.to_i, height.to_i).write(f)
+    end
+    # 大きさ情報を付けてリネームする
+    images.rename_dir unless rename == "false"
+    # 200Kオーバーのファイルの圧縮率を下げる。なぜか200Kだと200K以上のがでる,ココらへんが以下になるっぽい
+    images.filesize_down(196000) unless filesize == "false"
+  end
+
+  desc "fit [width] [height] [rename] [filesize]", "[幅] [高さ] に納まるように同じ比率でリサイズします。
+[reaname]をtrueにするとリサイズ情報を加えたリネームをします。
+[filesize]をtrueにするとファイルサイズを200kb以下にする。"
+  def fit( width, height, rename="false", filesize="false" )
+    images = ImageFiles.new
+
+    puts "これらのファイルを#{width}×#{height} に収まるように同比率でリサイズします。"
+    images.each do |f|
+      puts " >> #{f}"
+      Magick::Image.read(f).first.resize_to_fit( width.to_i, height.to_i).write(f)
+    end
+
+    # 大きさ情報を付けてリネームする
+    images.rename_dir unless rename == "false"
+    # 200Kオーバーのファイルの圧縮率を下げる
+    images.filesize_down(196000) unless filesize == "false"
+  end
+
+
+  desc "crop [width] [height] [rename] [filesize]", "[幅] [高さ] で真ん中からクロップする。
+[reaname]をtrueにするとリサイズ情報を加えたリネームをします。
+[filesize]をtrueにするとファイルサイズを200kb以下にする。"
+  def crop( width, height, rename="false", filesize="false" )
+    images = ImageFiles.new
+
+    puts "これらのファイルを#{width}×#{height}の大きさで真ん中からクロップする。"
+    images.each do |f|
+      puts " >> #{f}"
+      Magick::Image.read(f).first.resize_to_fill( width.to_i, height.to_i).write(f)
+    end
+    # 大きさ情報を付けてリネームする
+    images.rename_dir unless rename == "false"
+    # 200Kオーバーのファイルの圧縮率を下げる
+    images.filesize_down(196000) unless filesize == "false"
+  end
+
+  desc "mark [元画像名] [rename] [filesize]", "チャグ丸印を右上に合成します。
+[reaname]をtrueにするとmarkを加えたリネームをします。
+[filesize]をtrueにするとファイルサイズを200kb以下にする。"
+  def mark( org, rename="false", filesize="false" )
+    images = ImageFiles.new
+    image = MiniMagick::Image.open( org )
+    mark = MiniMagick::Image.open( File::expand_path("~/bin/ruby/images/chag_mark.png"))
+    puts "[#{org}] に チャグまる印を入れた画像を作成します。"
+    result = image.composite( mark ) do |c|
+      c.gravity "northeast"
+    end
+    result.write( images.new_name(org, "mark") ) unless rename == "false"
+    images.filesize_down(196000) unless filesize == "false"
+  end
+
+  desc "composite [元画像名] [合成画像名] [rename] [filesize]", "合成画像を右上に合成します。
+[reaname]をtrueにするとリネームをします。
+[filesize]をtrueにするとファイルサイズを200kb以下にする。"
+  def composite( org, composite, rename="false", filesize="false" )
+    images = ImageFiles.new
+    image = MiniMagick::Image.open( org )
+    mark = MiniMagick::Image.open( composite )
+    puts "[#{org}]に[#{composite}]を重ねます。"
+    result = image.composite( mark ) do |c|
+      c.gravity "northeast"
+    end
+    result.write( images.new_name(org) ) unless rename == "false"
+    images.filesize_down(196000) unless filesize == "false"
+  end
+end
+
+Chag.start
